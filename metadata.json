@@ -1,0 +1,8 @@
+{
+  "name": "录音宝 设计稿",
+  "description": "专业蓝牙录音硬件管理工具，支持多国语言、设备数据同步与本地录音库管理。",
+  "requestFramePermissions": [
+    "microphone",
+    "bluetooth"
+  ]
+}
