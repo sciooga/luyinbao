@@ -1,5 +1,18 @@
 
-import { Recording } from '../types';
+import { Recording, Folder } from '../types';
+
+export const MOCK_FOLDERS: Folder[] = [
+  {
+    id: 'f1',
+    name: 'Work Meetings',
+    timestamp: 1698300000000
+  },
+  {
+    id: 'f2',
+    name: 'Inspiration',
+    timestamp: 1698400000000
+  }
+];
 
 export const MOCK_LOCAL_RECORDINGS: Recording[] = [
   {
@@ -12,7 +25,8 @@ export const MOCK_LOCAL_RECORDINGS: Recording[] = [
     isFavorite: true,
     tags: ['Work', 'Meeting'],
     thumbnailUrl: 'https://picsum.photos/seed/rec1/200/200',
-    version: '1.0.2'
+    version: '1.0.2',
+    folderId: 'f1'
   },
   {
     id: '2',
@@ -24,7 +38,8 @@ export const MOCK_LOCAL_RECORDINGS: Recording[] = [
     isFavorite: false,
     tags: ['Creative'],
     thumbnailUrl: 'https://picsum.photos/seed/rec2/200/200',
-    version: '1.0.0'
+    version: '1.0.0',
+    folderId: 'f2'
   },
   {
     id: '3',

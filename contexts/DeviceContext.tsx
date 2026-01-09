@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { ConnectionStatus, Recording, ConnectionRecord } from '../types';
-import { MOCK_LOCAL_RECORDINGS, MOCK_DEVICE_FILES } from '../services/mockData';
+import { ConnectionStatus, Recording, ConnectionRecord, Folder } from '../types';
+import { MOCK_LOCAL_RECORDINGS, MOCK_DEVICE_FILES, MOCK_FOLDERS } from '../services/mockData';
 
 interface DeviceContextType {
   status: ConnectionStatus;
@@ -10,6 +10,7 @@ interface DeviceContextType {
   scanForDevices: () => Promise<void>;
   disconnect: () => void;
   localRecordings: Recording[];
+  folders: Folder[];
   deviceFiles: Recording[];
   connectionHistory: ConnectionRecord[];
   syncFile: (file: Recording) => Promise<void>;
@@ -21,6 +22,16 @@ interface DeviceContextType {
   renameLocalRecording: (id: string, newName: string) => void;
   deleteDeviceFile: (id: string) => void;
   checkIsSynced: (fileId: string) => boolean;
+  createFolder: (name: string) => void;
+  deleteFolder: (folderId: string) => void;
+  moveRecordingsToFolder: (recordingIds: string[], folderId: string | undefined) => void;
+  // Music Control Types
+  isMusicPlaying: boolean;
+  musicVolume: number;
+  toggleMusicPlay: () => void;
+  playNextTrack: () => void;
+  playPrevTrack: () => void;
+  setMusicVolume: (level: number) => void;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
@@ -31,6 +42,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [batteryLevel, setBatteryLevel] = useState(85);
   
   const [localRecordings, setLocalRecordings] = useState<Recording[]>(MOCK_LOCAL_RECORDINGS);
+  const [folders, setFolders] = useState<Folder[]>(MOCK_FOLDERS);
   const [deviceFiles, setDeviceFiles] = useState<Recording[]>([]); 
   const [connectionHistory, setConnectionHistory] = useState<ConnectionRecord[]>([
     { id: 'h1', deviceName: 'SmartSound X1', timestamp: Date.now() - 86400000 * 2, durationMinutes: 45 },
@@ -40,6 +52,10 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const timerRef = useRef<number | null>(null);
+
+  // Music State
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [musicVolume, setMusicVolume] = useState(50);
 
   const scanForDevices = async () => {
     setStatus(ConnectionStatus.SCANNING);
@@ -66,6 +82,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setDeviceFiles([]);
     setIsRecording(false);
     setRecordingSeconds(0);
+    setIsMusicPlaying(false);
   };
 
   const startTimer = () => {
@@ -88,6 +105,8 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     if (nextState) {
       startTimer();
+      // If we start recording, usually we pause music
+      if (isMusicPlaying) setIsMusicPlaying(false);
     } else {
       stopTimer();
       // On stop, add the recording to the device files
@@ -110,6 +129,20 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const toggleMusicPlay = () => {
+    setIsMusicPlaying(prev => !prev);
+  };
+
+  const playNextTrack = () => {
+    // Mock functionality
+    console.log("Next track command sent");
+  };
+
+  const playPrevTrack = () => {
+    // Mock functionality
+    console.log("Previous track command sent");
+  };
+
   const checkIsSynced = (fileId: string) => {
     return localRecordings.some(r => r.id === fileId);
   };
@@ -117,7 +150,8 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const syncFile = async (file: Recording) => {
     if (checkIsSynced(file.id)) return;
     await new Promise(resolve => setTimeout(resolve, 800));
-    setLocalRecordings(prev => [file, ...prev]);
+    // Synced files go to root by default
+    setLocalRecordings(prev => [{...file, folderId: undefined}, ...prev]);
   };
 
   const syncAll = async () => {
@@ -139,6 +173,30 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setDeviceFiles(prev => prev.filter(r => r.id !== id));
   };
 
+  const createFolder = (name: string) => {
+    const newFolder: Folder = {
+      id: `f_${Date.now()}`,
+      name,
+      timestamp: Date.now()
+    };
+    setFolders(prev => [newFolder, ...prev]);
+  };
+
+  const deleteFolder = (folderId: string) => {
+    // Move files in this folder back to root
+    setLocalRecordings(prev => prev.map(r => r.folderId === folderId ? { ...r, folderId: undefined } : r));
+    setFolders(prev => prev.filter(f => f.id !== folderId));
+  };
+
+  const moveRecordingsToFolder = (recordingIds: string[], folderId: string | undefined) => {
+    setLocalRecordings(prev => prev.map(r => {
+      if (recordingIds.includes(r.id)) {
+        return { ...r, folderId: folderId };
+      }
+      return r;
+    }));
+  };
+
   useEffect(() => {
     if (status === ConnectionStatus.CONNECTED) {
       const interval = setInterval(() => {
@@ -156,6 +214,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       scanForDevices,
       disconnect,
       localRecordings,
+      folders,
       deviceFiles,
       connectionHistory,
       syncFile,
@@ -166,7 +225,16 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deleteLocalRecording,
       renameLocalRecording,
       deleteDeviceFile,
-      checkIsSynced
+      checkIsSynced,
+      createFolder,
+      deleteFolder,
+      moveRecordingsToFolder,
+      isMusicPlaying,
+      musicVolume,
+      toggleMusicPlay,
+      playNextTrack,
+      playPrevTrack,
+      setMusicVolume
     }}>
       {children}
     </DeviceContext.Provider>

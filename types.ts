@@ -21,6 +21,12 @@ export interface User {
   language: Language;
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  timestamp: number;
+}
+
 export interface Recording {
   id: string;
   filename: string;
@@ -32,6 +38,7 @@ export interface Recording {
   tags: string[];
   thumbnailUrl?: string;
   version?: string;
+  folderId?: string; // Optional: if undefined, it's in the root
 }
 
 export interface ConnectionRecord {

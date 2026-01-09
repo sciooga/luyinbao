@@ -9,31 +9,71 @@ import {
   HardDrive, Clock, Calendar, CheckSquare, Square, 
   Settings2, FastForward, Rewind, 
   Info, Zap, ShieldCheck, Database, PencilLine,
-  ArrowUpDown, Check
+  ArrowUpDown, Check, Folder, FolderPlus, FolderOpen,
+  ArrowLeft, MoveRight, ChevronRight
 } from 'lucide-react';
-import { Recording } from '../types';
+import { Recording, Folder as FolderType } from '../types';
 
 type SortOption = 'date' | 'size' | 'duration';
 
 export const RecordingsPage: React.FC = () => {
-  const { localRecordings, deleteLocalRecording, renameLocalRecording } = useDevice();
+  const { 
+    localRecordings, 
+    folders,
+    deleteLocalRecording, 
+    renameLocalRecording,
+    createFolder,
+    deleteFolder,
+    moveRecordingsToFolder 
+  } = useDevice();
   const { language } = useLanguage();
+  
+  // Navigation State
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+
+  // Playback State
   const [activeRecording, setActiveRecording] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [playbackProgress, setPlaybackProgress] = useState(35);
+  
+  // View State
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null);
+  
+  // Modals
   const [showShare, setShowShare] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [tempName, setTempName] = useState('');
   
+  // New Modals for Folder
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+
   const sortMenuRef = useRef<HTMLDivElement>(null);
 
-  // Close sort menu when clicking outside
+  // Batch Selection State
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const currentFolder = useMemo(() => 
+    folders.find(f => f.id === currentFolderId), 
+  [folders, currentFolderId]);
+
+  // Update selectedRecording whenever localRecordings change
+  useEffect(() => {
+    if (selectedRecording) {
+      const updated = localRecordings.find(r => r.id === selectedRecording.id);
+      if (updated) setSelectedRecording(updated);
+    }
+  }, [localRecordings, selectedRecording]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
@@ -44,36 +84,36 @@ export const RecordingsPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Rename state
-  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [tempName, setTempName] = useState('');
+  const filteredItems = useMemo(() => {
+    // 1. Filter Recordings
+    let recordings = localRecordings.filter(rec => {
+      // If searching, show all matching files regardless of folder
+      if (searchQuery) {
+        return rec.filename.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+      // Otherwise show files in current folder
+      if (currentFolderId) {
+        return rec.folderId === currentFolderId;
+      }
+      return !rec.folderId; // Root
+    });
 
-  // Batch Selection State
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // Update selectedRecording whenever localRecordings change (to keep rename/favorite state in sync)
-  useEffect(() => {
-    if (selectedRecording) {
-      const updated = localRecordings.find(r => r.id === selectedRecording.id);
-      if (updated) setSelectedRecording(updated);
-    }
-  }, [localRecordings, selectedRecording]);
-
-  const filteredAndSortedRecordings = useMemo(() => {
-    let result = localRecordings.filter(rec => 
-      rec.filename.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    result.sort((a, b) => {
+    recordings.sort((a, b) => {
       if (sortBy === 'date') return b.timestamp - a.timestamp;
       if (sortBy === 'size') return b.sizeBytes - a.sizeBytes;
       if (sortBy === 'duration') return b.durationSec - a.durationSec;
       return 0;
     });
 
-    return result;
-  }, [localRecordings, searchQuery, sortBy]);
+    // 2. Filter Folders (Only show if not searching and in root or allow subfolders later)
+    // For this version: Folders only exist at root.
+    let displayedFolders: FolderType[] = [];
+    if (!searchQuery && !currentFolderId) {
+      displayedFolders = folders;
+    }
+
+    return { recordings, displayedFolders };
+  }, [localRecordings, folders, searchQuery, sortBy, currentFolderId]);
 
   const formatDuration = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -134,7 +174,7 @@ export const RecordingsPage: React.FC = () => {
 
   const handleBatchDelete = () => {
     if (selectedIds.size === 0) return;
-    if (confirm(t('btn.delete', language) + ` ${selectedIds.size} recordings?`)) {
+    if (confirm(t('btn.delete', language) + ` ${selectedIds.size} items?`)) {
       selectedIds.forEach(id => deleteLocalRecording(id));
       setSelectedIds(new Set());
       setIsSelectMode(false);
@@ -156,6 +196,28 @@ export const RecordingsPage: React.FC = () => {
     if (selectedRecording && tempName.trim()) {
       renameLocalRecording(selectedRecording.id, tempName.trim());
       setIsRenameModalOpen(false);
+    }
+  };
+
+  const handleCreateFolder = () => {
+    if (newFolderName.trim()) {
+      createFolder(newFolderName.trim());
+      setNewFolderName('');
+      setIsCreateFolderOpen(false);
+    }
+  };
+
+  const handleMoveToFolder = (targetFolderId: string | undefined) => {
+    moveRecordingsToFolder(Array.from(selectedIds), targetFolderId);
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+    setIsMoveModalOpen(false);
+  };
+
+  const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm(t('folder.delete_confirm', language))) {
+      deleteFolder(folderId);
     }
   };
 
@@ -194,6 +256,84 @@ export const RecordingsPage: React.FC = () => {
                 </button>
             </div>
         </div>
+    </div>
+  );
+
+  const CreateFolderModal = () => (
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 backdrop-blur-md p-6 animate-in fade-in duration-300">
+        <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+            <h3 className="text-lg font-black text-slate-900 mb-2 tracking-tight">
+                {t('folder.create', language)}
+            </h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">
+                {t('folder.name', language)}
+            </p>
+            
+            <input 
+                autoFocus
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all text-sm font-bold text-slate-800 mb-8"
+                placeholder={t('folder.new_placeholder', language)}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+                <button 
+                    onClick={() => setIsCreateFolderOpen(false)}
+                    className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all"
+                >
+                    {t('btn.cancel', language)}
+                </button>
+                <button 
+                    onClick={handleCreateFolder}
+                    className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95 transition-all"
+                >
+                    {t('btn.confirm', language)}
+                </button>
+            </div>
+        </div>
+    </div>
+  );
+
+  const MoveToFolderModal = () => (
+    <div className="fixed inset-0 z-[1200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-md p-4 pb-20 sm:pb-4 animate-in fade-in duration-300">
+      <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl animate-in slide-in-from-bottom duration-500">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-black text-slate-900 tracking-tight">{t('folder.move_to', language)}</h3>
+          <button onClick={() => setIsMoveModalOpen(false)} className="p-2.5 bg-slate-100 rounded-full text-slate-400 active:scale-90 transition-transform">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-3 max-h-[300px] overflow-y-auto no-scrollbar">
+           {/* Root Option */}
+           <button
+             onClick={() => handleMoveToFolder(undefined)}
+             className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 active:scale-[0.98] transition-all hover:bg-indigo-50 hover:border-indigo-100 group"
+           >
+              <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-slate-400 group-hover:text-indigo-600">
+                 <HardDrive size={20} />
+              </div>
+              <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{t('folder.root', language)}</span>
+           </button>
+
+           {/* Folder Options */}
+           {folders.map(folder => (
+              <button
+                key={folder.id}
+                onClick={() => handleMoveToFolder(folder.id)}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 active:scale-[0.98] transition-all hover:bg-amber-50 hover:border-amber-100 group shadow-sm"
+              >
+                 <div className="w-10 h-10 rounded-xl bg-amber-50 shadow-sm flex items-center justify-center text-amber-500 border border-amber-100">
+                    <Folder size={20} />
+                 </div>
+                 <span className="text-sm font-bold text-slate-700 group-hover:text-amber-700">{folder.name}</span>
+              </button>
+           ))}
+        </div>
+      </div>
     </div>
   );
 
@@ -250,7 +390,65 @@ export const RecordingsPage: React.FC = () => {
     </div>
   );
 
-  const ListItem = ({ rec }: { rec: Recording }) => (
+  const FolderItem: React.FC<{ folder: FolderType }> = ({ folder }) => {
+    const itemCount = localRecordings.filter(r => r.folderId === folder.id).length;
+    
+    if (layout === 'list') {
+      return (
+        <div 
+          onClick={() => setCurrentFolderId(folder.id)}
+          className="p-4 rounded-3xl bg-white shadow-sm border border-slate-100 flex items-center gap-4 active:scale-[0.98] transition-all hover:bg-amber-50/50 group"
+        >
+           <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center flex-shrink-0 border border-amber-100 text-amber-500 shadow-sm">
+              <Folder size={24} className="fill-current" />
+           </div>
+           <div className="flex-1 min-w-0">
+             <h3 className="text-sm font-bold text-slate-700 truncate mb-1">{folder.name}</h3>
+             <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
+                {itemCount} {t('folder.items_count', language)}
+             </span>
+           </div>
+           
+           {!isSelectMode && (
+              <button 
+                  onClick={(e) => handleDeleteFolder(folder.id, e)}
+                  className="text-slate-300 hover:text-red-500 p-2 transition-colors active:scale-90 opacity-0 group-hover:opacity-100"
+              >
+                  <Trash2 size={18} />
+              </button>
+            )}
+            <ChevronLeft className="rotate-180 text-slate-300 mr-2" size={20} />
+        </div>
+      );
+    }
+    
+    return (
+      <div 
+        onClick={() => setCurrentFolderId(folder.id)}
+        className="rounded-[2rem] bg-white shadow-sm border border-slate-100 p-5 active:scale-[0.97] transition-all flex flex-col justify-between h-32 hover:bg-amber-50/30 group relative"
+      >
+        <div className="flex justify-between items-start">
+           <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 border border-amber-100">
+               <Folder size={20} className="fill-current" />
+           </div>
+           {!isSelectMode && (
+             <button 
+                onClick={(e) => handleDeleteFolder(folder.id, e)}
+                className="text-slate-300 hover:text-red-500 transition-colors active:scale-90"
+             >
+                <Trash2 size={16} />
+             </button>
+           )}
+        </div>
+        <div>
+           <h3 className="text-xs font-bold text-slate-700 truncate mb-1">{folder.name}</h3>
+           <span className="text-[10px] font-bold text-slate-400">{itemCount} items</span>
+        </div>
+      </div>
+    );
+  };
+
+  const ListItem: React.FC<{ rec: Recording }> = ({ rec }) => (
     <div 
         onClick={() => openDetail(rec)}
         className={`p-4 rounded-3xl shadow-sm border flex items-center gap-4 active:scale-[0.98] transition-all group ${
@@ -291,7 +489,6 @@ export const RecordingsPage: React.FC = () => {
                 <span className="text-indigo-500 flex items-center gap-1"><Clock size={10}/> {formatDuration(rec.durationSec)}</span>
                 <span className="flex items-center gap-1"><Calendar size={10}/> {formatDate(rec.timestamp).split(',')[0]}</span>
                 <span className="flex items-center gap-1"><Database size={10}/> {formatSize(rec.sizeBytes)}</span>
-                <span className="flex items-center gap-1"><HardDrive size={10}/> {rec.source}</span>
             </div>
         </div>
 
@@ -306,7 +503,7 @@ export const RecordingsPage: React.FC = () => {
     </div>
   );
 
-  const GridItem = ({ rec }: { rec: Recording }) => (
+  const GridItem: React.FC<{ rec: Recording }> = ({ rec }) => (
     <div 
         onClick={() => openDetail(rec)}
         className={`rounded-[2rem] shadow-sm border overflow-hidden active:scale-[0.97] transition-all group flex flex-col ${
@@ -523,9 +720,11 @@ export const RecordingsPage: React.FC = () => {
 
   return (
     <div className="pb-32 min-h-screen bg-slate-50/50">
-      <div className="bg-white sticky top-0 z-[60] px-6 py-5 border-b border-slate-100 shadow-sm">
+      <div className="bg-white sticky top-0 z-[60] px-6 pt-5 pb-3 border-b border-slate-100 shadow-sm flex flex-col gap-4 transition-all">
+        {/* Header Row */}
         <div className="flex items-center justify-between">
-            <h1 className="text-lg font-black text-slate-900 tracking-tight">{t('rec.list', language)}</h1>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">{t('rec.list', language)}</h1>
+
             <div className="flex items-center gap-1.5 relative" ref={sortMenuRef}>
                  <button 
                     onClick={() => setIsSearchOpen(!isSearchOpen)}
@@ -534,7 +733,6 @@ export const RecordingsPage: React.FC = () => {
                     <Search size={18}/>
                 </button>
                 
-                {/* Refined Sort Dropdown */}
                  <button 
                     onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
                     className={`p-2 rounded-xl transition-all ${isSortMenuOpen ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`}
@@ -565,6 +763,16 @@ export const RecordingsPage: React.FC = () => {
                     ))}
                   </div>
                 )}
+                 
+                 {/* Create Folder Button (Only visible in root and not search mode) */}
+                 {!currentFolderId && !searchQuery && (
+                   <button 
+                      onClick={() => setIsCreateFolderOpen(true)}
+                      className="p-2 rounded-xl text-slate-400 hover:bg-amber-50 hover:text-amber-500 transition-all"
+                   >
+                      <FolderPlus size={18} />
+                   </button>
+                 )}
 
                  <button 
                     onClick={() => {
@@ -593,7 +801,7 @@ export const RecordingsPage: React.FC = () => {
         </div>
 
         {isSearchOpen && (
-            <div className="mt-4 animate-in slide-in-from-top duration-200">
+            <div className="animate-in slide-in-from-top duration-200">
                 <input 
                     autoFocus
                     type="text" 
@@ -604,14 +812,45 @@ export const RecordingsPage: React.FC = () => {
                 />
             </div>
         )}
+
+        {/* Path Navigation */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <button 
+                onClick={() => setCurrentFolderId(null)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border flex-shrink-0 ${
+                    !currentFolderId 
+                    ? 'bg-slate-800 text-white font-bold border-slate-800 shadow-lg shadow-slate-200' 
+                    : 'bg-white text-slate-500 font-bold border-slate-200 hover:bg-slate-50'
+                }`}
+            >
+               <HardDrive size={14} />
+               <span className="text-[10px] uppercase tracking-wider">{t('folder.root', language)}</span>
+            </button>
+
+            {currentFolder && (
+                <>
+                    <ChevronRight size={14} className="text-slate-300 flex-shrink-0" />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 text-white font-bold border border-amber-500 shadow-lg shadow-amber-100 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                        <FolderOpen size={14} />
+                        <span className="text-[10px] uppercase tracking-wider max-w-[150px] truncate">{currentFolder.name}</span>
+                    </div>
+                </>
+            )}
+        </div>
       </div>
 
       <div className={`p-5 pb-32 ${layout === 'grid' ? 'grid grid-cols-2 gap-4' : 'space-y-3'}`}>
-        {filteredAndSortedRecordings.map(rec => (
+        {/* Render Folders first (only if not searching, or allow search for folders later) */}
+        {filteredItems.displayedFolders.map(folder => (
+            <FolderItem key={folder.id} folder={folder} />
+        ))}
+
+        {/* Render Recordings */}
+        {filteredItems.recordings.map(rec => (
             layout === 'list' ? <ListItem key={rec.id} rec={rec} /> : <GridItem key={rec.id} rec={rec} />
         ))}
 
-        {filteredAndSortedRecordings.length === 0 && (
+        {filteredItems.recordings.length === 0 && filteredItems.displayedFolders.length === 0 && (
             <div className="text-center py-24 text-slate-300 col-span-2">
                 <Music size={56} className="mx-auto mb-4 opacity-10" />
                 <p className="text-[10px] font-black tracking-widest uppercase">{t('device.no_files', language)}</p>
@@ -623,20 +862,22 @@ export const RecordingsPage: React.FC = () => {
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-white border border-slate-100 shadow-2xl rounded-[2.5rem] p-5 flex items-center justify-between z-[1000] animate-in slide-in-from-bottom duration-500">
           <div className="flex items-center gap-2 px-2">
             <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full uppercase tracking-widest">
-              {selectedIds.size} Items
+              {selectedIds.size}
             </span>
           </div>
           <div className="flex gap-3">
-            <button 
-              onClick={() => setIsSelectMode(false)}
-              className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest active:scale-95 transition-transform"
+             <button 
+              onClick={() => setIsMoveModalOpen(true)}
+              disabled={selectedIds.size === 0}
+              className="px-4 py-2 text-[10px] font-black text-amber-600 bg-amber-50 rounded-2xl uppercase tracking-widest active:scale-95 transition-transform disabled:opacity-50 flex items-center gap-1.5"
             >
-              {t('btn.cancel', language)}
+              <MoveRight size={14} />
+              {t('btn.move', language)}
             </button>
             <button 
               onClick={handleBatchDelete}
               disabled={selectedIds.size === 0}
-              className="bg-red-500 text-white px-6 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 shadow-xl shadow-red-100 active:scale-95 transition-transform"
+              className="bg-red-500 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 shadow-xl shadow-red-100 active:scale-95 transition-transform"
             >
               {t('btn.delete', language)}
             </button>
@@ -645,6 +886,8 @@ export const RecordingsPage: React.FC = () => {
       )}
 
       {showShare && <ShareModal />}
+      {isCreateFolderOpen && <CreateFolderModal />}
+      {isMoveModalOpen && <MoveToFolderModal />}
     </div>
   );
 };
