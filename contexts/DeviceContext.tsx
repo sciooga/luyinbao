@@ -32,6 +32,9 @@ interface DeviceContextType {
   playNextTrack: () => void;
   playPrevTrack: () => void;
   setMusicVolume: (level: number) => void;
+  // Hardware Settings
+  buttonPressDuration: number;
+  setButtonPressDuration: (duration: number) => void;
 }
 
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
@@ -56,6 +59,9 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Music State
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [musicVolume, setMusicVolume] = useState(50);
+
+  // Hardware Settings State
+  const [buttonPressDuration, setButtonPressDuration] = useState(30);
 
   const scanForDevices = async () => {
     setStatus(ConnectionStatus.SCANNING);
@@ -234,7 +240,9 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toggleMusicPlay,
       playNextTrack,
       playPrevTrack,
-      setMusicVolume
+      setMusicVolume,
+      buttonPressDuration,
+      setButtonPressDuration
     }}>
       {children}
     </DeviceContext.Provider>

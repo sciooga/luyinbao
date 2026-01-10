@@ -28,7 +28,9 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-  Music
+  Music,
+  Settings,
+  SlidersHorizontal
 } from 'lucide-react';
 import { Button } from '../components/Button';
 
@@ -53,13 +55,16 @@ export const DevicePage: React.FC = () => {
     playNextTrack,
     playPrevTrack,
     musicVolume,
-    setMusicVolume
+    setMusicVolume,
+    buttonPressDuration,
+    setButtonPressDuration
   } = useDevice();
   const { language } = useLanguage();
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [isCustomDuration, setIsCustomDuration] = useState(![30, 45, 60].includes(buttonPressDuration));
 
   const handleSyncOne = async (file: any) => {
     setSyncingId(file.id);
@@ -84,6 +89,16 @@ export const DevicePage: React.FC = () => {
     if (!checkIsSynced(file.id)) {
         setShowSyncPrompt(true);
         setTimeout(() => setShowSyncPrompt(false), 2500);
+    }
+  };
+
+  const handleDurationSelect = (val: number | 'custom') => {
+    if (val === 'custom') {
+      setIsCustomDuration(true);
+    } else {
+      setIsCustomDuration(false);
+      setButtonPressDuration(val);
+      console.log(`Command: Set hardware rec duration to ${val}s`);
     }
   };
 
@@ -291,6 +306,81 @@ export const DevicePage: React.FC = () => {
                     </>
                 )}
             </button>
+        </div>
+
+        {/* Device Settings - New Section */}
+        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+             <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                   <Settings size={14} />
+                </div>
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('device.settings.title', language)}</h3>
+             </div>
+
+             <div className="space-y-6">
+                <div>
+                   <label className="block text-xs font-bold text-slate-700 mb-4">{t('device.settings.duration', language)}</label>
+                   <div className="flex p-1 bg-slate-100 rounded-2xl">
+                      {[30, 45, 60].map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => handleDurationSelect(val)}
+                          className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                            !isCustomDuration && buttonPressDuration === val 
+                              ? 'bg-white text-indigo-600 shadow-sm' 
+                              : 'text-slate-400'
+                          }`}
+                        >
+                          {val}s
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => handleDurationSelect('custom')}
+                        className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          isCustomDuration 
+                            ? 'bg-white text-indigo-600 shadow-sm' 
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        {t('device.settings.custom', language)}
+                      </button>
+                   </div>
+                </div>
+
+                {isCustomDuration && (
+                  <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100/50 animate-in slide-in-from-top-2 duration-300">
+                     <div className="flex justify-between items-center mb-4">
+                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{t('device.settings.range', language)}</span>
+                        <div className="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-black tabular-nums shadow-sm">
+                           {buttonPressDuration}{t('device.settings.seconds', language)}
+                        </div>
+                     </div>
+                     <div className="relative h-1.5 bg-indigo-100 rounded-full">
+                        <input 
+                           type="range"
+                           min="10"
+                           max="300"
+                           step="5"
+                           value={buttonPressDuration}
+                           onChange={(e) => {
+                             const val = parseInt(e.target.value);
+                             setButtonPressDuration(val);
+                             console.log(`Command: Set hardware rec duration to ${val}s`);
+                           }}
+                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div 
+                           className="absolute h-full bg-indigo-600 rounded-full"
+                           style={{ width: `${((buttonPressDuration - 10) / (300 - 10)) * 100}%` }}
+                        />
+                        <div 
+                           className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-full shadow-md pointer-events-none"
+                           style={{ left: `${((buttonPressDuration - 10) / (300 - 10)) * 100}%`, transform: 'translate(-50%, -50%)' }}
+                        />
+                     </div>
+                  </div>
+                )}
+             </div>
         </div>
 
         {/* Music Control Section */}
