@@ -14,9 +14,6 @@ import {
   X, 
   Check, 
   Camera, 
-  Facebook, 
-  Twitter, 
-  Apple,
   Mail
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -32,12 +29,7 @@ export const ProfilePage: React.FC = () => {
   const [user, setUser] = useState({
     nickname: 'Alex Johnson',
     email: 'alex.j@example.com',
-    avatar: 'https://picsum.photos/200/200',
-    socials: {
-      facebook: true,
-      google: false,
-      apple: true
-    }
+    avatar: 'https://picsum.photos/200/200'
   });
 
   // Edit Buffer
@@ -220,73 +212,6 @@ export const ProfilePage: React.FC = () => {
                         <ChevronRight size={18} className="text-slate-300" />
                     </div>
                 ))}
-            </div>
-
-            {/* Social Accounts Section */}
-            <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-                <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-50">
-                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('profile.social_accounts', language)}</h3>
-                </div>
-                
-                {/* Facebook */}
-                <div className="flex items-center justify-between p-5 border-b border-slate-50">
-                    <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <Facebook size={18} />
-                        </div>
-                        <span className="text-xs font-black text-slate-700">Facebook</span>
-                    </div>
-                    <button 
-                      onClick={() => setUser(p => ({ ...p, socials: { ...p.socials, facebook: !p.socials.facebook } }))}
-                      className={`text-[10px] font-black px-4 py-1.5 rounded-full transition-all border ${
-                        user.socials.facebook 
-                          ? 'bg-slate-100 text-slate-400 border-slate-200' 
-                          : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                      }`}
-                    >
-                        {user.socials.facebook ? t('profile.social_unbind', language) : t('profile.social_bind', language)}
-                    </button>
-                </div>
-
-                {/* Twitter / X */}
-                <div className="flex items-center justify-between p-5 border-b border-slate-50">
-                    <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
-                            <Twitter size={18} />
-                        </div>
-                        <span className="text-xs font-black text-slate-700">Twitter (X)</span>
-                    </div>
-                    <button 
-                      onClick={() => setUser(p => ({ ...p, socials: { ...p.socials, google: !p.socials.google } }))}
-                      className={`text-[10px] font-black px-4 py-1.5 rounded-full transition-all border ${
-                        user.socials.google 
-                          ? 'bg-slate-100 text-slate-400 border-slate-200' 
-                          : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                      }`}
-                    >
-                        {user.socials.google ? t('profile.social_unbind', language) : t('profile.social_bind', language)}
-                    </button>
-                </div>
-
-                {/* Apple */}
-                <div className="flex items-center justify-between p-5">
-                    <div className="flex items-center gap-4">
-                        <div className="w-9 h-9 rounded-2xl bg-slate-50 text-slate-900 flex items-center justify-center border border-slate-100">
-                            <Apple size={18} />
-                        </div>
-                        <span className="text-xs font-black text-slate-700">Apple ID</span>
-                    </div>
-                    <button 
-                      onClick={() => setUser(p => ({ ...p, socials: { ...p.socials, apple: !p.socials.apple } }))}
-                      className={`text-[10px] font-black px-4 py-1.5 rounded-full transition-all border ${
-                        user.socials.apple 
-                          ? 'bg-slate-100 text-slate-400 border-slate-200' 
-                          : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                      }`}
-                    >
-                        {user.socials.apple ? t('profile.social_unbind', language) : t('profile.social_bind', language)}
-                    </button>
-                </div>
             </div>
 
             <button 

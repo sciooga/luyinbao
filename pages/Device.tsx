@@ -30,7 +30,8 @@ import {
   VolumeX,
   Music,
   Settings,
-  SlidersHorizontal
+  ListChecks,
+  Check
 } from 'lucide-react';
 import { Button } from '../components/Button';
 
@@ -66,6 +67,11 @@ export const DevicePage: React.FC = () => {
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [isCustomDuration, setIsCustomDuration] = useState(![30, 45, 60].includes(buttonPressDuration));
 
+  // Multi-select State
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+
   const handleSyncOne = async (file: any) => {
     setSyncingId(file.id);
     await syncFile(file);
@@ -99,6 +105,54 @@ export const DevicePage: React.FC = () => {
       setIsCustomDuration(false);
       setButtonPressDuration(val);
       console.log(`Command: Set hardware rec duration to ${val}s`);
+    }
+  };
+
+  const toggleSelectMode = () => {
+    if (isSelectMode) {
+        setIsSelectMode(false);
+        setSelectedIds(new Set());
+    } else {
+        setIsSelectMode(true);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === deviceFiles.length) {
+        setSelectedIds(new Set());
+    } else {
+        setSelectedIds(new Set(deviceFiles.map(f => f.id)));
+    }
+  };
+
+  const handleBatchSync = async () => {
+    setIsBatchProcessing(true);
+    const files = deviceFiles.filter(f => selectedIds.has(f.id));
+    for (const f of files) {
+        await syncFile(f);
+    }
+    setIsBatchProcessing(false);
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBatchDelete = () => {
+    if (confirm(t('btn.delete', language) + ` (${selectedIds.size})?`)) {
+        setIsBatchProcessing(true);
+        selectedIds.forEach(id => deleteDeviceFile(id));
+        setIsBatchProcessing(false);
+        // If all deleted, exit select mode
+        if (deviceFiles.filter(f => !selectedIds.has(f.id)).length === 0) {
+             setIsSelectMode(false);
+        }
+        setSelectedIds(new Set());
     }
   };
 
@@ -183,7 +237,7 @@ export const DevicePage: React.FC = () => {
         </h2>
         <p className="text-slate-500 mb-8 max-w-[240px] text-xs leading-relaxed">
             {t('status.disconnected_desc', language)}
-        </p>
+        </h2>
         <div className="space-y-4 w-full max-w-[200px]">
           <Button onClick={scanForDevices} fullWidth className="shadow-indigo-300 h-12">
               {t('btn.scan', language)}
@@ -308,7 +362,7 @@ export const DevicePage: React.FC = () => {
             </button>
         </div>
 
-        {/* Device Settings - New Section */}
+        {/* Device Settings */}
         <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
              <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
@@ -454,23 +508,60 @@ export const DevicePage: React.FC = () => {
              </div>
         </div>
 
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-             <div className="flex items-center justify-between px-7 py-6 border-b border-slate-50 bg-slate-50/40">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
-                    <FileAudio size={18} className="text-indigo-500" />
-                    {t('device.files', language)}
-                </h3>
-                <button 
-                    onClick={handleSyncAll}
-                    disabled={isSyncingAll || deviceFiles.length === 0}
-                    className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-5 py-2.5 rounded-full hover:bg-indigo-100 active:scale-95 transition-all flex items-center gap-2.5 disabled:opacity-50 uppercase tracking-widest border border-indigo-100/50"
-                >
-                    <RefreshCw size={14} className={isSyncingAll ? 'animate-spin' : ''} />
-                    {t('device.sync_all', language)}
-                </button>
+        <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden relative min-h-[500px]">
+             {/* Header */}
+             <div className={`flex items-center justify-between px-7 py-6 border-b border-slate-50 transition-colors duration-300 ${isSelectMode ? 'bg-indigo-50/30' : 'bg-white'}`}>
+                {isSelectMode ? (
+                    <>
+                        <div className="flex items-center gap-3 animate-in slide-in-from-left-4 duration-300">
+                            <div className="bg-indigo-600 text-white text-lg font-black w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                                {selectedIds.size}
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">{t('device.selected', language)}</p>
+                                <button 
+                                    onClick={handleSelectAll}
+                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                                >
+                                    {selectedIds.size === deviceFiles.length ? t('btn.deselect_all', language) : t('btn.select_all', language)}
+                                </button>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => { setIsSelectMode(false); setSelectedIds(new Set()); }}
+                            className="bg-white text-slate-800 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm border border-slate-100 active:scale-95 transition-all hover:bg-slate-50 animate-in slide-in-from-right-4 duration-300"
+                        >
+                            {t('btn.done', language)}
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-3">
+                            <FileAudio size={18} className="text-indigo-500" />
+                            {t('device.files', language)}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                             <button 
+                                onClick={handleSyncAll}
+                                disabled={isSyncingAll || deviceFiles.length === 0}
+                                className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full hover:bg-indigo-100 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 uppercase tracking-widest border border-indigo-100/50"
+                            >
+                                <RefreshCw size={14} className={isSyncingAll ? 'animate-spin' : ''} />
+                                {t('device.sync_all', language)}
+                            </button>
+                            <button 
+                                onClick={() => setIsSelectMode(true)}
+                                disabled={deviceFiles.length === 0}
+                                className="p-2 bg-white border border-slate-100 rounded-full text-slate-400 hover:text-indigo-600 hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                <ListChecks size={18} />
+                            </button>
+                        </div>
+                    </>
+                )}
              </div>
 
-             <div className="divide-y divide-slate-50 min-h-[200px]">
+             <div className="divide-y divide-slate-50 pb-28">
                 {deviceFiles.length === 0 ? (
                     <div className="text-center py-20 text-slate-400">
                         <Disc3 size={48} className="mx-auto mb-5 opacity-5 animate-[spin_12s_linear_infinite]" />
@@ -482,43 +573,63 @@ export const DevicePage: React.FC = () => {
                         return (
                             <div 
                                 key={file.id} 
-                                onClick={() => handleFileClick(file)}
-                                className="flex items-center justify-between px-7 py-5 hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                                onClick={() => isSelectMode ? toggleSelection(file.id) : handleFileClick(file)}
+                                className={`flex items-center transition-all duration-200 cursor-pointer group ${
+                                    isSelectMode 
+                                      ? (selectedIds.has(file.id) ? 'bg-indigo-50/40' : 'hover:bg-slate-50')
+                                      : 'hover:bg-slate-50/50'
+                                }`}
                             >
-                                <div className="flex items-center gap-5 overflow-hidden min-w-0 flex-1">
-                                    <div className="w-12 h-12 rounded-2xl bg-indigo-50/50 flex items-center justify-center text-indigo-500 flex-shrink-0 group-hover:scale-110 transition-transform border border-indigo-100/50">
-                                        <Disc3 size={24} />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <div className="text-sm font-bold text-slate-800 truncate mb-1">{file.filename}</div>
-                                        <div className="text-[10px] text-slate-400 flex items-center gap-3 font-bold uppercase tracking-tight">
-                                          <span className="text-indigo-500/80 font-black">{formatDuration(file.durationSec)}</span>
-                                          <span className="w-1 h-1 bg-slate-200 rounded-full" />
-                                          <span>{(file.sizeBytes / 1024 / 1024).toFixed(1)}MB</span>
-                                        </div>
-                                    </div>
+                                <div className={`overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] ${isSelectMode ? 'w-16 opacity-100' : 'w-0 opacity-0'}`}>
+                                     <div className="w-16 h-full flex items-center justify-center">
+                                         <div className={`w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all ${
+                                             selectedIds.has(file.id) 
+                                                ? 'bg-indigo-600 border-indigo-600' 
+                                                : 'border-slate-300 bg-white'
+                                         }`}>
+                                             <Check size={12} className="text-white" strokeWidth={4} />
+                                         </div>
+                                     </div>
                                 </div>
-                                
-                                <div className="flex items-center gap-2 ml-4">
-                                    {isSynced ? (
-                                        <div className="p-3 text-green-500 bg-green-50 rounded-2xl border border-green-100 shadow-sm">
-                                            <CheckCircle size={16} />
+
+                                <div className={`flex-1 py-5 pr-7 flex items-center justify-between min-w-0 ${!isSelectMode ? 'pl-7' : ''}`}>
+                                    <div className="flex items-center gap-5 overflow-hidden min-w-0 flex-1">
+                                        <div className="w-12 h-12 rounded-2xl bg-indigo-50/50 flex items-center justify-center text-indigo-500 flex-shrink-0 group-hover:scale-110 transition-transform border border-indigo-100/50">
+                                            <Disc3 size={24} />
                                         </div>
-                                    ) : (
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); handleSyncOne(file); }}
-                                            disabled={!!syncingId}
-                                            className="p-3 text-indigo-600 bg-white hover:bg-indigo-50 rounded-2xl transition-all active:scale-90 border border-slate-100 shadow-sm"
-                                        >
-                                            {syncingId === file.id ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
-                                        </button>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-bold text-slate-800 truncate mb-1">{file.filename}</div>
+                                            <div className="text-[10px] text-slate-400 flex items-center gap-3 font-bold uppercase tracking-tight">
+                                            <span className="text-indigo-500/80 font-black">{formatDuration(file.durationSec)}</span>
+                                            <span className="w-1 h-1 bg-slate-200 rounded-full" />
+                                            <span>{(file.sizeBytes / 1024 / 1024).toFixed(1)}MB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {!isSelectMode && (
+                                        <div className="flex items-center gap-2 ml-4">
+                                            {isSynced ? (
+                                                <div className="p-3 text-green-500 bg-green-50 rounded-2xl border border-green-100 shadow-sm">
+                                                    <CheckCircle size={16} />
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleSyncOne(file); }}
+                                                    disabled={!!syncingId}
+                                                    className="p-3 text-indigo-600 bg-white hover:bg-indigo-50 rounded-2xl transition-all active:scale-90 border border-slate-100 shadow-sm"
+                                                >
+                                                    {syncingId === file.id ? <RefreshCw size={16} className="animate-spin" /> : <Download size={16} />}
+                                                </button>
+                                            )}
+                                            <button 
+                                                onClick={(e) => handleDeleteDeviceFile(file.id, e)}
+                                                className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 hover:border-red-100 rounded-2xl transition-all active:scale-90 border border-transparent"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     )}
-                                    <button 
-                                        onClick={(e) => handleDeleteDeviceFile(file.id, e)}
-                                        className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 hover:border-red-100 rounded-2xl transition-all active:scale-90 border border-transparent"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
                                 </div>
                             </div>
                         );
@@ -527,6 +638,29 @@ export const DevicePage: React.FC = () => {
              </div>
         </div>
         
+        {isSelectMode && (
+            <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] max-w-[380px] z-[50] animate-in slide-in-from-bottom-10 duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]">
+                <div className="bg-white/80 backdrop-blur-xl border border-white/40 shadow-2xl shadow-slate-200/50 rounded-[2rem] p-2 flex gap-2">
+                    <button 
+                        onClick={handleBatchDelete}
+                        disabled={selectedIds.size === 0}
+                        className="flex-1 py-4 rounded-[1.5rem] hover:bg-red-50 text-slate-400 hover:text-red-500 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-1 active:scale-95 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                    >
+                        <Trash2 size={20} />
+                        {t('btn.delete', language)}
+                    </button>
+                    <button 
+                        onClick={handleBatchSync}
+                        disabled={selectedIds.size === 0 || isBatchProcessing}
+                        className="flex-[2] bg-indigo-600 text-white rounded-[1.5rem] font-black text-[10px] uppercase tracking-[0.15em] shadow-lg shadow-indigo-200 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+                    >
+                        {isBatchProcessing ? <RefreshCw size={20} className="animate-spin" /> : <Download size={20} />}
+                        {t('btn.sync_selected', language)}
+                    </button>
+                </div>
+            </div>
+        )}
+
         {showHistory && <HistoryModal />}
     </div>
   );
