@@ -10,7 +10,7 @@ import {
   Settings2, FastForward, Rewind, 
   Info, Zap, ShieldCheck, Database, PencilLine,
   ArrowUpDown, Check, Folder, FolderPlus, FolderOpen,
-  ArrowLeft, MoveRight, ChevronRight
+  ArrowLeft, MoveRight, ChevronRight, Pin, PinOff
 } from 'lucide-react';
 import { Recording, Folder as FolderType } from '../types';
 
@@ -22,6 +22,7 @@ export const RecordingsPage: React.FC = () => {
     folders,
     deleteLocalRecording, 
     renameLocalRecording,
+    togglePinRecording,
     createFolder,
     deleteFolder,
     moveRecordingsToFolder 
@@ -99,6 +100,9 @@ export const RecordingsPage: React.FC = () => {
     });
 
     recordings.sort((a, b) => {
+      // Prioritize pinned items
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      
       if (sortBy === 'date') return b.timestamp - a.timestamp;
       if (sortBy === 'size') return b.sizeBytes - a.sizeBytes;
       if (sortBy === 'duration') return b.durationSec - a.durationSec;
@@ -216,6 +220,11 @@ export const RecordingsPage: React.FC = () => {
 
   const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const itemCount = localRecordings.filter(r => r.folderId === folderId).length;
+    if (itemCount > 0) {
+        alert(t('folder.err_not_empty', language));
+        return;
+    }
     if (confirm(t('folder.delete_confirm', language))) {
       deleteFolder(folderId);
     }
@@ -412,7 +421,7 @@ export const RecordingsPage: React.FC = () => {
            {!isSelectMode && (
               <button 
                   onClick={(e) => handleDeleteFolder(folder.id, e)}
-                  className="text-slate-300 hover:text-red-500 p-2 transition-colors active:scale-90 opacity-0 group-hover:opacity-100"
+                  className={`p-2 transition-colors active:scale-90 opacity-0 group-hover:opacity-100 ${itemCount > 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`}
               >
                   <Trash2 size={18} />
               </button>
@@ -434,7 +443,7 @@ export const RecordingsPage: React.FC = () => {
            {!isSelectMode && (
              <button 
                 onClick={(e) => handleDeleteFolder(folder.id, e)}
-                className="text-slate-300 hover:text-red-500 transition-colors active:scale-90"
+                className={`transition-colors active:scale-90 ${itemCount > 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`}
              >
                 <Trash2 size={16} />
              </button>
@@ -452,7 +461,11 @@ export const RecordingsPage: React.FC = () => {
     <div 
         onClick={() => openDetail(rec)}
         className={`p-4 rounded-3xl shadow-sm border flex items-center gap-4 active:scale-[0.98] transition-all group ${
-          isSelectMode && selectedIds.has(rec.id) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100'
+          isSelectMode && selectedIds.has(rec.id) 
+            ? 'bg-indigo-50 border-indigo-200' 
+            : rec.isPinned 
+                ? 'bg-indigo-50/30 border-indigo-100/50'
+                : 'bg-white border-slate-100'
         }`}
     >
         {isSelectMode && (
@@ -484,7 +497,10 @@ export const RecordingsPage: React.FC = () => {
         </div>
         
         <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-bold text-slate-700 truncate mb-1">{rec.filename}</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className={`text-sm font-bold truncate ${rec.isPinned ? 'text-indigo-900' : 'text-slate-700'}`}>{rec.filename}</h3>
+              {rec.isPinned && <Pin size={12} className="text-indigo-500 fill-indigo-500 flex-shrink-0" />}
+            </div>
             <div className="flex flex-wrap items-center text-[10px] font-bold text-slate-400 gap-x-3 gap-y-1">
                 <span className="text-indigo-500 flex items-center gap-1"><Clock size={10}/> {formatDuration(rec.durationSec)}</span>
                 <span className="flex items-center gap-1"><Calendar size={10}/> {formatDate(rec.timestamp).split(',')[0]}</span>
@@ -493,12 +509,20 @@ export const RecordingsPage: React.FC = () => {
         </div>
 
         {!isSelectMode && (
-          <button 
-              onClick={(e) => { e.stopPropagation(); setSelectedRecording(rec); setShowShare(true); }} 
-              className="text-slate-300 hover:text-indigo-500 p-2 transition-colors active:scale-90"
-          >
-              <Share2 size={18} />
-          </button>
+          <div className="flex items-center gap-2">
+             <button 
+                onClick={(e) => { e.stopPropagation(); togglePinRecording(rec.id); }}
+                className={`p-2 transition-colors active:scale-90 ${rec.isPinned ? 'text-indigo-500' : 'text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100'}`}
+             >
+                <Pin size={18} className={rec.isPinned ? "fill-current" : ""} />
+             </button>
+             <button 
+                  onClick={(e) => { e.stopPropagation(); setSelectedRecording(rec); setShowShare(true); }} 
+                  className="text-slate-300 hover:text-indigo-500 p-2 transition-colors active:scale-90"
+              >
+                  <Share2 size={18} />
+              </button>
+          </div>
         )}
     </div>
   );
@@ -507,7 +531,11 @@ export const RecordingsPage: React.FC = () => {
     <div 
         onClick={() => openDetail(rec)}
         className={`rounded-[2rem] shadow-sm border overflow-hidden active:scale-[0.97] transition-all group flex flex-col ${
-           isSelectMode && selectedIds.has(rec.id) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-100'
+           isSelectMode && selectedIds.has(rec.id) 
+           ? 'bg-indigo-50 border-indigo-200' 
+           : rec.isPinned 
+              ? 'bg-indigo-50/30 border-indigo-100/50'
+              : 'bg-white border-slate-100'
         }`}
     >
         <div className="aspect-square bg-slate-50 relative group">
@@ -534,6 +562,14 @@ export const RecordingsPage: React.FC = () => {
                 >
                     {activeRecording === rec.id && isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
                 </button>
+                <button
+                    onClick={(e) => { e.stopPropagation(); togglePinRecording(rec.id); }}
+                    className={`absolute right-3 top-3 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                        rec.isPinned ? 'bg-indigo-600 text-white shadow-md' : 'bg-white/90 text-slate-400 opacity-0 group-hover:opacity-100'
+                    }`}
+                >
+                    <Pin size={14} className={rec.isPinned ? "fill-white" : ""} />
+                </button>
               </>
             )}
 
@@ -543,7 +579,9 @@ export const RecordingsPage: React.FC = () => {
         </div>
         
         <div className="p-4">
-            <h3 className="text-xs font-bold text-slate-700 truncate mb-1">{rec.filename}</h3>
+            <h3 className={`text-xs font-bold truncate mb-1 flex items-center gap-1 ${rec.isPinned ? 'text-indigo-900' : 'text-slate-700'}`}>
+                {rec.filename}
+            </h3>
             <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 uppercase tracking-tight">
                 <span>{formatDate(rec.timestamp).split(',')[0]}</span>
                 <span>{formatSize(rec.sizeBytes)}</span>
@@ -701,10 +739,17 @@ export const RecordingsPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex justify-center pt-8">
+                    <div className="flex justify-center gap-4 pt-4">
+                        <button 
+                            onClick={() => togglePinRecording(selectedRecording.id)}
+                            className={`flex items-center gap-2 text-[10px] font-black transition-colors uppercase tracking-[0.2em] px-4 py-2 rounded-full border ${selectedRecording.isPinned ? 'text-indigo-600 bg-indigo-50 border-indigo-100' : 'text-slate-400 border-slate-200'}`}
+                        >
+                            {selectedRecording.isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                            {selectedRecording.isPinned ? t('rec.unpin', language) : t('rec.pin', language)}
+                        </button>
                         <button 
                             onClick={() => handleDelete(selectedRecording.id)}
-                            className="flex items-center gap-2 text-[10px] font-black text-slate-300 hover:text-red-400 transition-colors uppercase tracking-[0.2em]"
+                            className="flex items-center gap-2 text-[10px] font-black text-slate-300 hover:text-red-400 transition-colors uppercase tracking-[0.2em] px-4 py-2"
                         >
                             <Trash2 size={14} />
                             {t('btn.delete', language)}

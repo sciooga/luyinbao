@@ -35,6 +35,7 @@ export interface Recording {
   sizeBytes: number;
   source: string; // Device Model
   isFavorite: boolean;
+  isPinned?: boolean; // New property for Top/Pin functionality
   tags: string[];
   thumbnailUrl?: string;
   version?: string;

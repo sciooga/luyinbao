@@ -20,6 +20,7 @@ interface DeviceContextType {
   toggleRecording: () => void;
   deleteLocalRecording: (id: string) => void;
   renameLocalRecording: (id: string, newName: string) => void;
+  togglePinRecording: (id: string) => void;
   deleteDeviceFile: (id: string) => void;
   checkIsSynced: (fileId: string) => boolean;
   createFolder: (name: string) => void;
@@ -126,6 +127,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           sizeBytes: Math.floor(Math.random() * 1000000) + 500000,
           source: deviceName || 'Unknown Device',
           isFavorite: false,
+          isPinned: false,
           tags: [],
           version: '1.0.0'
         };
@@ -175,6 +177,10 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLocalRecordings(prev => prev.map(r => r.id === id ? { ...r, filename: newName } : r));
   };
 
+  const togglePinRecording = (id: string) => {
+    setLocalRecordings(prev => prev.map(r => r.id === id ? { ...r, isPinned: !r.isPinned } : r));
+  };
+
   const deleteDeviceFile = (id: string) => {
     setDeviceFiles(prev => prev.filter(r => r.id !== id));
   };
@@ -189,8 +195,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteFolder = (folderId: string) => {
-    // Move files in this folder back to root
-    setLocalRecordings(prev => prev.map(r => r.folderId === folderId ? { ...r, folderId: undefined } : r));
+    // Only delete the folder itself, UI layer handles empty check
     setFolders(prev => prev.filter(f => f.id !== folderId));
   };
 
@@ -230,6 +235,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       toggleRecording,
       deleteLocalRecording,
       renameLocalRecording,
+      togglePinRecording,
       deleteDeviceFile,
       checkIsSynced,
       createFolder,
