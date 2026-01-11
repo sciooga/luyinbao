@@ -237,7 +237,7 @@ export const DevicePage: React.FC = () => {
         </h2>
         <p className="text-slate-500 mb-8 max-w-[240px] text-xs leading-relaxed">
             {t('status.disconnected_desc', language)}
-        </h2>
+        </p>
         <div className="space-y-4 w-full max-w-[200px]">
           <Button onClick={scanForDevices} fullWidth className="shadow-indigo-300 h-12">
               {t('btn.scan', language)}
