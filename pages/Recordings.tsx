@@ -674,7 +674,6 @@ export const RecordingsPage: React.FC = () => {
                     {activeRecording === rec.id && isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
                 </button>
                 
-                {/* 3-Dot Menu Button - Always Visible */}
                 <div className="absolute right-2 top-2 z-20">
                      <button
                         onClick={handleMenuClick}
@@ -722,10 +721,6 @@ export const RecordingsPage: React.FC = () => {
                 )}
               </>
             )}
-
-            <div className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-black/30 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
-                {formatDuration(rec.durationSec)}
-            </div>
         </div>
         
         <div className="p-4">
@@ -773,14 +768,6 @@ export const RecordingsPage: React.FC = () => {
                         >
                             <PencilLine size={20} />
                         </button>
-                     </div>
-
-                     <div className="flex flex-wrap justify-center gap-2">
-                        <p className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-4 py-1.5 rounded-full uppercase tracking-[0.1em] border border-indigo-100/50">{selectedRecording.source}</p>
-                        <p className="text-[10px] font-black text-slate-400 bg-slate-50 px-4 py-1.5 rounded-full uppercase tracking-[0.1em] border border-slate-100 flex items-center gap-2">
-                            <ShieldCheck size={12} className="text-slate-300" />
-                            {selectedRecording.version || '1.0.0'}
-                        </p>
                      </div>
                  </div>
 
@@ -882,10 +869,6 @@ export const RecordingsPage: React.FC = () => {
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('rec.metadata.length', language)}</p>
                                 <p className="text-[11px] font-bold text-slate-700">{formatDuration(selectedRecording.durationSec)}</p>
                             </div>
-                            <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('rec.metadata.device', language)}</p>
-                                <p className="text-[11px] font-bold text-slate-700">{selectedRecording.source}</p>
-                            </div>
                         </div>
                     </div>
 
@@ -959,7 +942,6 @@ export const RecordingsPage: React.FC = () => {
                   </div>
                 )}
                  
-                 {/* Create Folder Button (Only visible in root and not search mode) */}
                  {!currentFolderId && !searchQuery && (
                    <button 
                       onClick={() => setIsCreateFolderOpen(true)}
@@ -1008,7 +990,6 @@ export const RecordingsPage: React.FC = () => {
             </div>
         )}
 
-        {/* Path Navigation */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             <button 
                 onClick={() => setCurrentFolderId(null)}
@@ -1035,12 +1016,10 @@ export const RecordingsPage: React.FC = () => {
       </div>
 
       <div className={`p-5 pb-32 ${layout === 'grid' ? 'grid grid-cols-2 gap-4' : 'space-y-3'}`}>
-        {/* Render Folders first (only if not searching, or allow search for folders later) */}
         {filteredItems.displayedFolders.map(folder => (
             <FolderItem key={folder.id} folder={folder} />
         ))}
 
-        {/* Render Recordings */}
         {filteredItems.recordings.map(rec => (
             layout === 'list' ? <ListItem key={rec.id} rec={rec} /> : <GridItem key={rec.id} rec={rec} />
         ))}

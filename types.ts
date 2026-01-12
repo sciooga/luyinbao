@@ -1,8 +1,12 @@
 
 export enum Language {
-  ZH_CN = 'zh-CN', // China (Default)
+  ZH_CN = 'zh-CN', // China
   EN_US = 'en-US', // USA
+  EN_CA = 'en-CA', // Canada
+  EN_GB = 'en-GB', // UK
   DE_DE = 'de-DE', // Germany
+  EN_AU = 'en-AU', // Australia
+  EN_NZ = 'en-NZ', // New Zealand
 }
 
 export enum ConnectionStatus {
@@ -35,7 +39,7 @@ export interface Recording {
   sizeBytes: number;
   source: string; // Device Model
   isFavorite: boolean;
-  isPinned?: boolean; // New property for Top/Pin functionality
+  isPinned?: boolean;
   tags: string[];
   thumbnailUrl?: string;
   version?: string;
