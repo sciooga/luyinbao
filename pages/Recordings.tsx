@@ -10,11 +10,18 @@ import {
   Settings2, FastForward, Rewind, 
   Info, Zap, ShieldCheck, Database, PencilLine,
   ArrowUpDown, Check, Folder, FolderPlus, FolderOpen,
-  ArrowLeft, MoveRight, ChevronRight, Pin, PinOff
+  ArrowLeft, MoveRight, ChevronRight, Pin, PinOff,
+  MoreVertical, Edit2
 } from 'lucide-react';
 import { Recording, Folder as FolderType } from '../types';
 
 type SortOption = 'date' | 'size' | 'duration';
+
+type RenamingItem = {
+  id: string;
+  type: 'file' | 'folder';
+  name: string;
+};
 
 export const RecordingsPage: React.FC = () => {
   const { 
@@ -25,6 +32,7 @@ export const RecordingsPage: React.FC = () => {
     togglePinRecording,
     createFolder,
     deleteFolder,
+    renameFolder,
     moveRecordingsToFolder 
   } = useDevice();
   const { language } = useLanguage();
@@ -45,12 +53,14 @@ export const RecordingsPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null);
   
-  // Modals
+  // Modals and Menus
   const [showShare, setShowShare] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renamingItem, setRenamingItem] = useState<RenamingItem | null>(null);
   const [tempName, setTempName] = useState('');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null); // For 3-dot menu
   
   // New Modals for Folder
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -80,10 +90,15 @@ export const RecordingsPage: React.FC = () => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
         setIsSortMenuOpen(false);
       }
+      // Also close active item menu if clicked outside
+      const target = event.target as HTMLElement;
+      if (activeMenuId && !target.closest('.item-menu-container')) {
+        setActiveMenuId(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [activeMenuId]);
 
   const filteredItems = useMemo(() => {
     // 1. Filter Recordings
@@ -196,11 +211,23 @@ export const RecordingsPage: React.FC = () => {
     }
   };
 
-  const handleRename = () => {
-    if (selectedRecording && tempName.trim()) {
-      renameLocalRecording(selectedRecording.id, tempName.trim());
-      setIsRenameModalOpen(false);
+  const openRenameModal = (item: RenamingItem) => {
+    setRenamingItem(item);
+    setTempName(item.name);
+    setIsRenameModalOpen(true);
+    setActiveMenuId(null);
+  };
+
+  const handleRenameSubmit = () => {
+    if (!renamingItem || !tempName.trim()) return;
+    
+    if (renamingItem.type === 'file') {
+        renameLocalRecording(renamingItem.id, tempName.trim());
+    } else {
+        renameFolder(renamingItem.id, tempName.trim());
     }
+    setIsRenameModalOpen(false);
+    setRenamingItem(null);
   };
 
   const handleCreateFolder = () => {
@@ -218,8 +245,7 @@ export const RecordingsPage: React.FC = () => {
     setIsMoveModalOpen(false);
   };
 
-  const handleDeleteFolder = (folderId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteFolder = (folderId: string) => {
     const itemCount = localRecordings.filter(r => r.folderId === folderId).length;
     if (itemCount > 0) {
         alert(t('folder.err_not_empty', language));
@@ -228,6 +254,7 @@ export const RecordingsPage: React.FC = () => {
     if (confirm(t('folder.delete_confirm', language))) {
       deleteFolder(folderId);
     }
+    setActiveMenuId(null);
   };
 
   const RenameModal = () => (
@@ -237,7 +264,7 @@ export const RecordingsPage: React.FC = () => {
                 {t('rec.rename.title', language)}
             </h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">
-                {t('rec.rename.desc', language)}
+                {renamingItem?.type === 'folder' ? t('folder.name', language) : t('rec.rename.desc', language)}
             </p>
             
             <input 
@@ -245,7 +272,7 @@ export const RecordingsPage: React.FC = () => {
                 type="text"
                 value={tempName}
                 onChange={(e) => setTempName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+                onKeyDown={(e) => e.key === 'Enter' && handleRenameSubmit()}
                 className="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all text-sm font-bold text-slate-800 mb-8"
                 placeholder={t('rec.rename.placeholder', language)}
             />
@@ -258,7 +285,7 @@ export const RecordingsPage: React.FC = () => {
                     {t('btn.cancel', language)}
                 </button>
                 <button 
-                    onClick={handleRename}
+                    onClick={handleRenameSubmit}
                     className="py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 active:scale-95 transition-all"
                 >
                     {t('btn.save', language)}
@@ -401,12 +428,18 @@ export const RecordingsPage: React.FC = () => {
 
   const FolderItem: React.FC<{ folder: FolderType }> = ({ folder }) => {
     const itemCount = localRecordings.filter(r => r.folderId === folder.id).length;
+    const isMenuOpen = activeMenuId === `folder-${folder.id}`;
+
+    const handleMenuClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setActiveMenuId(isMenuOpen ? null : `folder-${folder.id}`);
+    };
     
     if (layout === 'list') {
       return (
         <div 
           onClick={() => setCurrentFolderId(folder.id)}
-          className="p-4 rounded-3xl bg-white shadow-sm border border-slate-100 flex items-center gap-4 active:scale-[0.98] transition-all hover:bg-amber-50/50 group"
+          className="p-4 rounded-3xl bg-white shadow-sm border border-slate-100 flex items-center gap-4 active:scale-[0.98] transition-all hover:bg-amber-50/50 group relative item-menu-container"
         >
            <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center flex-shrink-0 border border-amber-100 text-amber-500 shadow-sm">
               <Folder size={24} className="fill-current" />
@@ -419,14 +452,32 @@ export const RecordingsPage: React.FC = () => {
            </div>
            
            {!isSelectMode && (
-              <button 
-                  onClick={(e) => handleDeleteFolder(folder.id, e)}
-                  className={`p-2 transition-colors active:scale-90 opacity-0 group-hover:opacity-100 ${itemCount > 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`}
-              >
-                  <Trash2 size={18} />
-              </button>
+              <div className="relative">
+                <button 
+                    onClick={handleMenuClick}
+                    className="p-2 text-slate-300 hover:text-slate-600 transition-colors active:scale-90"
+                >
+                    <MoreVertical size={20} />
+                </button>
+                {isMenuOpen && (
+                    <div className="absolute right-0 top-10 w-36 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); openRenameModal({ id: folder.id, type: 'folder', name: folder.name }); }}
+                            className="w-full text-left px-4 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                            <Edit2 size={14} /> {t('btn.rename', language)}
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
+                            className={`w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 ${itemCount > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <Trash2 size={14} /> {t('btn.delete', language)}
+                        </button>
+                    </div>
+                )}
+              </div>
             )}
-            <ChevronLeft className="rotate-180 text-slate-300 mr-2" size={20} />
+            {isSelectMode && <ChevronLeft className="rotate-180 text-slate-300 mr-2" size={20} />}
         </div>
       );
     }
@@ -434,19 +485,37 @@ export const RecordingsPage: React.FC = () => {
     return (
       <div 
         onClick={() => setCurrentFolderId(folder.id)}
-        className="rounded-[2rem] bg-white shadow-sm border border-slate-100 p-5 active:scale-[0.97] transition-all flex flex-col justify-between h-32 hover:bg-amber-50/30 group relative"
+        className="rounded-[2rem] bg-white shadow-sm border border-slate-100 p-5 active:scale-[0.97] transition-all flex flex-col justify-between h-32 hover:bg-amber-50/30 group relative item-menu-container"
       >
         <div className="flex justify-between items-start">
            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500 border border-amber-100">
                <Folder size={20} className="fill-current" />
            </div>
            {!isSelectMode && (
-             <button 
-                onClick={(e) => handleDeleteFolder(folder.id, e)}
-                className={`transition-colors active:scale-90 ${itemCount > 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-300 hover:text-red-500'}`}
-             >
-                <Trash2 size={16} />
-             </button>
+             <div className="relative">
+                <button 
+                    onClick={handleMenuClick}
+                    className="p-1 text-slate-300 hover:text-slate-600 transition-colors active:scale-90"
+                >
+                    <MoreVertical size={16} />
+                </button>
+                {isMenuOpen && (
+                    <div className="absolute right-0 top-8 w-32 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); openRenameModal({ id: folder.id, type: 'folder', name: folder.name }); }}
+                            className="w-full text-left px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                        >
+                            <Edit2 size={12} /> {t('btn.rename', language)}
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
+                            className={`w-full text-left px-3 py-2.5 text-[10px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 ${itemCount > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <Trash2 size={12} /> {t('btn.delete', language)}
+                        </button>
+                    </div>
+                )}
+             </div>
            )}
         </div>
         <div>
@@ -457,10 +526,18 @@ export const RecordingsPage: React.FC = () => {
     );
   };
 
-  const ListItem: React.FC<{ rec: Recording }> = ({ rec }) => (
+  const ListItem: React.FC<{ rec: Recording }> = ({ rec }) => {
+    const isMenuOpen = activeMenuId === `file-${rec.id}`;
+    
+    const handleMenuClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setActiveMenuId(isMenuOpen ? null : `file-${rec.id}`);
+    };
+
+    return (
     <div 
         onClick={() => openDetail(rec)}
-        className={`p-4 rounded-3xl shadow-sm border flex items-center gap-4 active:scale-[0.98] transition-all group ${
+        className={`p-4 rounded-3xl shadow-sm border flex items-center gap-4 active:scale-[0.98] transition-all group relative item-menu-container ${
           isSelectMode && selectedIds.has(rec.id) 
             ? 'bg-indigo-50 border-indigo-200' 
             : rec.isPinned 
@@ -509,28 +586,62 @@ export const RecordingsPage: React.FC = () => {
         </div>
 
         {!isSelectMode && (
-          <div className="flex items-center gap-2">
+          <div className="relative">
              <button 
-                onClick={(e) => { e.stopPropagation(); togglePinRecording(rec.id); }}
-                className={`p-2 transition-colors active:scale-90 ${rec.isPinned ? 'text-indigo-500' : 'text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100'}`}
+                onClick={handleMenuClick}
+                className="p-2 text-slate-300 hover:text-indigo-500 transition-colors active:scale-90"
              >
-                <Pin size={18} className={rec.isPinned ? "fill-current" : ""} />
+                <MoreVertical size={20} />
              </button>
-             <button 
-                  onClick={(e) => { e.stopPropagation(); setSelectedRecording(rec); setShowShare(true); }} 
-                  className="text-slate-300 hover:text-indigo-500 p-2 transition-colors active:scale-90"
-              >
-                  <Share2 size={18} />
-              </button>
+             {isMenuOpen && (
+                <div className="absolute right-0 top-10 w-36 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); togglePinRecording(rec.id); setActiveMenuId(null); }}
+                        className="w-full text-left px-4 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                        {rec.isPinned ? <PinOff size={14} /> : <Pin size={14} />} {rec.isPinned ? t('rec.unpin', language) : t('rec.pin', language)}
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setSelectedRecording(rec); setShowShare(true); setActiveMenuId(null); }}
+                        className="w-full text-left px-4 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                        <Share2 size={14} /> {t('btn.share', language)}
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); openRenameModal({ id: rec.id, type: 'file', name: rec.filename }); }}
+                        className="w-full text-left px-4 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                        <Edit2 size={14} /> {t('btn.rename', language)}
+                    </button>
+                    <button 
+                        onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if(confirm(t('btn.delete', language) + '?')) deleteLocalRecording(rec.id);
+                        }}
+                        className="w-full text-left px-4 py-3 text-xs font-bold text-red-500 hover:bg-red-50 flex items-center gap-2"
+                    >
+                        <Trash2 size={14} /> {t('btn.delete', language)}
+                    </button>
+                </div>
+             )}
           </div>
         )}
     </div>
-  );
+    );
+  };
 
-  const GridItem: React.FC<{ rec: Recording }> = ({ rec }) => (
+  const GridItem: React.FC<{ rec: Recording }> = ({ rec }) => {
+    const isMenuOpen = activeMenuId === `file-${rec.id}`;
+    
+    const handleMenuClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setActiveMenuId(isMenuOpen ? null : `file-${rec.id}`);
+    };
+
+    return (
     <div 
         onClick={() => openDetail(rec)}
-        className={`rounded-[2rem] shadow-sm border overflow-hidden active:scale-[0.97] transition-all group flex flex-col ${
+        className={`rounded-[2rem] shadow-sm border overflow-hidden active:scale-[0.97] transition-all group flex flex-col relative item-menu-container ${
            isSelectMode && selectedIds.has(rec.id) 
            ? 'bg-indigo-50 border-indigo-200' 
            : rec.isPinned 
@@ -562,18 +673,57 @@ export const RecordingsPage: React.FC = () => {
                 >
                     {activeRecording === rec.id && isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
                 </button>
-                <button
-                    onClick={(e) => { e.stopPropagation(); togglePinRecording(rec.id); }}
-                    className={`absolute right-3 top-3 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-                        rec.isPinned ? 'bg-indigo-600 text-white shadow-md' : 'bg-white/90 text-slate-400 opacity-0 group-hover:opacity-100'
-                    }`}
-                >
-                    <Pin size={14} className={rec.isPinned ? "fill-white" : ""} />
-                </button>
+                
+                {/* 3-Dot Menu Button - Always Visible */}
+                <div className="absolute right-2 top-2 z-20">
+                     <button
+                        onClick={handleMenuClick}
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all bg-white/80 backdrop-blur-md text-slate-600 shadow-sm`}
+                    >
+                        <MoreVertical size={16} />
+                    </button>
+                    {isMenuOpen && (
+                        <div className="absolute right-0 top-10 w-36 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); togglePinRecording(rec.id); setActiveMenuId(null); }}
+                                className="w-full text-left px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                                {rec.isPinned ? <PinOff size={12} /> : <Pin size={12} />} {rec.isPinned ? t('rec.unpin', language) : t('rec.pin', language)}
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setSelectedRecording(rec); setShowShare(true); setActiveMenuId(null); }}
+                                className="w-full text-left px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                                <Share2 size={12} /> {t('btn.share', language)}
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); openRenameModal({ id: rec.id, type: 'file', name: rec.filename }); }}
+                                className="w-full text-left px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                                <Edit2 size={12} /> {t('btn.rename', language)}
+                            </button>
+                             <button 
+                                onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    if(confirm(t('btn.delete', language) + '?')) deleteLocalRecording(rec.id);
+                                }}
+                                className="w-full text-left px-3 py-2.5 text-[10px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2"
+                            >
+                                <Trash2 size={12} /> {t('btn.delete', language)}
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {rec.isPinned && (
+                    <div className="absolute left-2 top-2 w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md z-10">
+                        <Pin size={12} className="fill-current" />
+                    </div>
+                )}
               </>
             )}
 
-            <div className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-black/30 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider">
+            <div className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-black/30 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
                 {formatDuration(rec.durationSec)}
             </div>
         </div>
@@ -588,7 +738,8 @@ export const RecordingsPage: React.FC = () => {
             </div>
         </div>
     </div>
-  );
+    );
+  };
 
   if (viewMode === 'detail' && selectedRecording) {
     const isThisActive = activeRecording === selectedRecording.id;
@@ -616,8 +767,7 @@ export const RecordingsPage: React.FC = () => {
                         </h2>
                         <button 
                             onClick={() => {
-                                setTempName(selectedRecording.filename);
-                                setIsRenameModalOpen(true);
+                                openRenameModal({ id: selectedRecording.id, type: 'file', name: selectedRecording.filename });
                             }}
                             className="p-2 text-indigo-400 hover:text-indigo-600 active:scale-90 transition-all"
                         >
@@ -933,6 +1083,7 @@ export const RecordingsPage: React.FC = () => {
       {showShare && <ShareModal />}
       {isCreateFolderOpen && <CreateFolderModal />}
       {isMoveModalOpen && <MoveToFolderModal />}
+      {isRenameModalOpen && <RenameModal />}
     </div>
   );
 };

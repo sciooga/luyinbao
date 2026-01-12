@@ -25,6 +25,7 @@ interface DeviceContextType {
   checkIsSynced: (fileId: string) => boolean;
   createFolder: (name: string) => void;
   deleteFolder: (folderId: string) => void;
+  renameFolder: (folderId: string, newName: string) => void;
   moveRecordingsToFolder: (recordingIds: string[], folderId: string | undefined) => void;
   // Music Control Types
   isMusicPlaying: boolean;
@@ -199,6 +200,10 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setFolders(prev => prev.filter(f => f.id !== folderId));
   };
 
+  const renameFolder = (folderId: string, newName: string) => {
+    setFolders(prev => prev.map(f => f.id === folderId ? { ...f, name: newName } : f));
+  };
+
   const moveRecordingsToFolder = (recordingIds: string[], folderId: string | undefined) => {
     setLocalRecordings(prev => prev.map(r => {
       if (recordingIds.includes(r.id)) {
@@ -240,6 +245,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       checkIsSynced,
       createFolder,
       deleteFolder,
+      renameFolder,
       moveRecordingsToFolder,
       isMusicPlaying,
       musicVolume,
