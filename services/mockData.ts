@@ -25,7 +25,6 @@ export const MOCK_LOCAL_RECORDINGS: Recording[] = [
     isFavorite: true,
     isPinned: true,
     tags: ['Work', 'Meeting'],
-    thumbnailUrl: 'https://picsum.photos/seed/rec1/200/200',
     version: '1.0.2',
     folderId: 'f1'
   },
@@ -39,7 +38,6 @@ export const MOCK_LOCAL_RECORDINGS: Recording[] = [
     isFavorite: false,
     isPinned: false,
     tags: ['Creative'],
-    thumbnailUrl: 'https://picsum.photos/seed/rec2/200/200',
     version: '1.0.0',
     folderId: 'f2'
   },
@@ -53,7 +51,6 @@ export const MOCK_LOCAL_RECORDINGS: Recording[] = [
     isFavorite: false,
     isPinned: false,
     tags: ['Travel'],
-    thumbnailUrl: 'https://picsum.photos/seed/rec3/200/200',
     version: '2.1.0'
   },
 ];

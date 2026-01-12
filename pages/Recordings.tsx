@@ -556,13 +556,9 @@ export const RecordingsPage: React.FC = () => {
         )}
         
         <div className="w-14 h-14 bg-slate-50 rounded-2xl overflow-hidden flex-shrink-0 relative shadow-sm border border-slate-100">
-            {rec.thumbnailUrl ? (
-                <img src={rec.thumbnailUrl} className="w-full h-full object-cover" />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-indigo-300">
-                    <Music size={24} />
-                </div>
-            )}
+            <div className="w-full h-full flex items-center justify-center text-indigo-300">
+                <Music size={24} />
+            </div>
             {!isSelectMode && (
               <button 
                   onClick={(e) => handlePlay(rec.id, e)}
@@ -650,13 +646,9 @@ export const RecordingsPage: React.FC = () => {
         }`}
     >
         <div className="aspect-square bg-slate-50 relative group">
-            {rec.thumbnailUrl ? (
-                <img src={rec.thumbnailUrl} className="w-full h-full object-cover" />
-            ) : (
-                <div className="w-full h-full flex items-center justify-center text-indigo-200">
-                    <Music size={32} />
-                </div>
-            )}
+            <div className="w-full h-full flex items-center justify-center text-indigo-200">
+                <Music size={32} />
+            </div>
             
             {isSelectMode && (
               <div className="absolute top-3 right-3 z-10">
@@ -749,11 +741,7 @@ export const RecordingsPage: React.FC = () => {
                  
                  <div className="flex flex-col items-center mt-6 mb-10">
                      <div className="w-60 h-60 bg-gradient-to-tr from-slate-50 to-white border border-slate-100 rounded-[3.5rem] shadow-2xl flex items-center justify-center mb-10 relative overflow-hidden group">
-                        {selectedRecording.thumbnailUrl ? (
-                            <img src={selectedRecording.thumbnailUrl} className="w-full h-full object-cover" />
-                        ) : (
-                            <Music size={80} className="text-indigo-400" />
-                        )}
+                        <Music size={80} className="text-indigo-400" />
                      </div>
                      
                      <div className="flex items-center justify-center gap-3 group/title px-6 mb-4">
@@ -850,24 +838,24 @@ export const RecordingsPage: React.FC = () => {
                  </div>
 
                  <div className="px-4 space-y-6 mb-12">
-                    <div className="bg-slate-50/50 p-8 rounded-[3rem] space-y-6 border border-slate-100 shadow-inner">
-                        <div className="flex items-center gap-3 pb-3 border-b border-slate-200/50">
+                    <div className="bg-slate-50/50 p-6 rounded-[2.5rem] border border-slate-100 shadow-inner">
+                        <div className="flex items-center gap-3 pb-4 mb-4 border-b border-slate-200/50">
                             <Info size={16} className="text-slate-400" />
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('rec.file_details', language)}</span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-y-8">
-                            <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('rec.metadata.timestamp', language)}</p>
-                                <p className="text-[11px] font-bold text-slate-700">{formatDate(selectedRecording.timestamp)}</p>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('rec.metadata.timestamp', language)}</span>
+                                <span className="text-xs font-black text-slate-700">{formatDate(selectedRecording.timestamp)}</span>
                             </div>
-                            <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('rec.metadata.storage', language)}</p>
-                                <p className="text-[11px] font-bold text-slate-700">{formatSize(selectedRecording.sizeBytes)}</p>
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('rec.metadata.storage', language)}</span>
+                                <span className="text-xs font-black text-slate-700">{formatSize(selectedRecording.sizeBytes)}</span>
                             </div>
-                            <div>
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('rec.metadata.length', language)}</p>
-                                <p className="text-[11px] font-bold text-slate-700">{formatDuration(selectedRecording.durationSec)}</p>
+                            <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('rec.metadata.length', language)}</span>
+                                <span className="text-xs font-black text-slate-700">{formatDuration(selectedRecording.durationSec)}</span>
                             </div>
                         </div>
                     </div>
