@@ -30,6 +30,7 @@ export const RecordingsPage: React.FC = () => {
     deleteLocalRecording, 
     renameLocalRecording,
     togglePinRecording,
+    toggleFavoriteLocalRecording,
     createFolder,
     deleteFolder,
     renameFolder,
@@ -50,6 +51,7 @@ export const RecordingsPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [layout, setLayout] = useState<'list' | 'grid'>('list');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [selectedRecording, setSelectedRecording] = useState<Recording | null>(null);
   
@@ -90,7 +92,6 @@ export const RecordingsPage: React.FC = () => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(event.target as Node)) {
         setIsSortMenuOpen(false);
       }
-      // Also close active item menu if clicked outside
       const target = event.target as HTMLElement;
       if (activeMenuId && !target.closest('.item-menu-container')) {
         setActiveMenuId(null);
@@ -101,8 +102,10 @@ export const RecordingsPage: React.FC = () => {
   }, [activeMenuId]);
 
   const filteredItems = useMemo(() => {
-    // 1. Filter Recordings
     let recordings = localRecordings.filter(rec => {
+      // Show only favorites if toggled
+      if (showOnlyFavorites && !rec.isFavorite) return false;
+      
       // If searching, show all matching files regardless of folder
       if (searchQuery) {
         return rec.filename.toLowerCase().includes(searchQuery.toLowerCase());
@@ -115,7 +118,6 @@ export const RecordingsPage: React.FC = () => {
     });
 
     recordings.sort((a, b) => {
-      // Prioritize pinned items
       if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
       
       if (sortBy === 'date') return b.timestamp - a.timestamp;
@@ -124,15 +126,13 @@ export const RecordingsPage: React.FC = () => {
       return 0;
     });
 
-    // 2. Filter Folders (Only show if not searching and in root or allow subfolders later)
-    // For this version: Folders only exist at root.
     let displayedFolders: FolderType[] = [];
-    if (!searchQuery && !currentFolderId) {
+    if (!searchQuery && !currentFolderId && !showOnlyFavorites) {
       displayedFolders = folders;
     }
 
     return { recordings, displayedFolders };
-  }, [localRecordings, folders, searchQuery, sortBy, currentFolderId]);
+  }, [localRecordings, folders, searchQuery, sortBy, currentFolderId, showOnlyFavorites]);
 
   const formatDuration = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -344,7 +344,6 @@ export const RecordingsPage: React.FC = () => {
         </div>
 
         <div className="space-y-3 max-h-[300px] overflow-y-auto no-scrollbar">
-           {/* Root Option */}
            <button
              onClick={() => handleMoveToFolder(undefined)}
              className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 active:scale-[0.98] transition-all hover:bg-indigo-50 hover:border-indigo-100 group"
@@ -355,7 +354,6 @@ export const RecordingsPage: React.FC = () => {
               <span className="text-sm font-bold text-slate-700 group-hover:text-indigo-700">{t('folder.root', language)}</span>
            </button>
 
-           {/* Folder Options */}
            {folders.map(folder => (
               <button
                 key={folder.id}
@@ -559,6 +557,11 @@ export const RecordingsPage: React.FC = () => {
             <div className="w-full h-full flex items-center justify-center text-indigo-300">
                 <Music size={24} />
             </div>
+            {rec.isFavorite && (
+              <div className="absolute bottom-1 right-1">
+                <Heart size={10} className="text-red-500 fill-red-500" />
+              </div>
+            )}
             {!isSelectMode && (
               <button 
                   onClick={(e) => handlePlay(rec.id, e)}
@@ -596,6 +599,12 @@ export const RecordingsPage: React.FC = () => {
                         className="w-full text-left px-4 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                     >
                         {rec.isPinned ? <PinOff size={14} /> : <Pin size={14} />} {rec.isPinned ? t('rec.unpin', language) : t('rec.pin', language)}
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); toggleFavoriteLocalRecording(rec.id); setActiveMenuId(null); }}
+                        className="w-full text-left px-4 py-3 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                        <Heart size={14} className={rec.isFavorite ? 'fill-red-500 text-red-500' : ''} /> {t('rec.favorite', language)}
                     </button>
                     <button 
                         onClick={(e) => { e.stopPropagation(); setSelectedRecording(rec); setShowShare(true); setActiveMenuId(null); }}
@@ -650,6 +659,12 @@ export const RecordingsPage: React.FC = () => {
                 <Music size={32} />
             </div>
             
+            {rec.isFavorite && (
+              <div className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-md p-1.5 rounded-lg shadow-sm">
+                <Heart size={12} className="text-red-500 fill-red-500" />
+              </div>
+            )}
+
             {isSelectMode && (
               <div className="absolute top-3 right-3 z-10">
                 <CheckSquare className="text-indigo-600 fill-white" size={24} />
@@ -680,6 +695,12 @@ export const RecordingsPage: React.FC = () => {
                                 className="w-full text-left px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
                             >
                                 {rec.isPinned ? <PinOff size={12} /> : <Pin size={12} />} {rec.isPinned ? t('rec.unpin', language) : t('rec.pin', language)}
+                            </button>
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); toggleFavoriteLocalRecording(rec.id); setActiveMenuId(null); }}
+                                className="w-full text-left px-3 py-2.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                            >
+                                <Heart size={12} className={rec.isFavorite ? 'fill-red-500 text-red-500' : ''} /> {t('rec.favorite', language)}
                             </button>
                             <button 
                                 onClick={(e) => { e.stopPropagation(); setSelectedRecording(rec); setShowShare(true); setActiveMenuId(null); }}
@@ -795,10 +816,10 @@ export const RecordingsPage: React.FC = () => {
 
                     <div className="flex items-center justify-between">
                         <button 
-                           onClick={() => {}}
-                           className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90 ${selectedRecording.isFavorite ? 'text-indigo-600 bg-indigo-50 border border-indigo-100/50' : 'text-slate-400 hover:bg-white border border-transparent'}`}
+                           onClick={() => toggleFavoriteLocalRecording(selectedRecording.id)}
+                           className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-90 ${selectedRecording.isFavorite ? 'text-red-500 bg-red-50 border border-red-100/50' : 'text-slate-400 hover:bg-white border border-transparent'}`}
                         >
-                            <Heart size={24} className={selectedRecording.isFavorite ? 'fill-indigo-600' : ''} />
+                            <Heart size={24} className={selectedRecording.isFavorite ? 'fill-red-500' : ''} />
                         </button>
 
                         <div className="flex items-center gap-6">
@@ -887,11 +908,17 @@ export const RecordingsPage: React.FC = () => {
   return (
     <div className="pb-32 min-h-screen bg-slate-50/50">
       <div className="bg-white sticky top-0 z-[60] px-6 pt-5 pb-3 border-b border-slate-100 shadow-sm flex flex-col gap-4 transition-all">
-        {/* Header Row */}
         <div className="flex items-center justify-between">
             <h1 className="text-xl font-black text-slate-900 tracking-tight">{t('rec.list', language)}</h1>
 
             <div className="flex items-center gap-1.5 relative" ref={sortMenuRef}>
+                 <button 
+                    onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                    className={`p-2 rounded-xl transition-all ${showOnlyFavorites ? 'bg-red-50 text-red-500' : 'text-slate-400 hover:bg-slate-50'}`}
+                 >
+                    <Heart size={18} className={showOnlyFavorites ? 'fill-red-500' : ''}/>
+                </button>
+
                  <button 
                     onClick={() => setIsSearchOpen(!isSearchOpen)}
                     className={`p-2 rounded-xl transition-all ${isSearchOpen ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`}
@@ -930,7 +957,7 @@ export const RecordingsPage: React.FC = () => {
                   </div>
                 )}
                  
-                 {!currentFolderId && !searchQuery && (
+                 {!currentFolderId && !searchQuery && !showOnlyFavorites && (
                    <button 
                       onClick={() => setIsCreateFolderOpen(true)}
                       className="p-2 rounded-xl text-slate-400 hover:bg-amber-50 hover:text-amber-500 transition-all"
@@ -980,9 +1007,9 @@ export const RecordingsPage: React.FC = () => {
 
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             <button 
-                onClick={() => setCurrentFolderId(null)}
+                onClick={() => { setCurrentFolderId(null); setShowOnlyFavorites(false); }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border flex-shrink-0 ${
-                    !currentFolderId 
+                    !currentFolderId && !showOnlyFavorites
                     ? 'bg-slate-800 text-white font-bold border-slate-800 shadow-lg shadow-slate-200' 
                     : 'bg-white text-slate-500 font-bold border-slate-200 hover:bg-slate-50'
                 }`}
@@ -991,7 +1018,17 @@ export const RecordingsPage: React.FC = () => {
                <span className="text-[10px] uppercase tracking-wider">{t('folder.root', language)}</span>
             </button>
 
-            {currentFolder && (
+            {showOnlyFavorites && (
+               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white font-bold border border-red-500 shadow-lg shadow-red-100 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">
+                  <Heart size={14} className="fill-current" />
+                  <span className="text-[10px] uppercase tracking-wider">{t('rec.favorite', language)}</span>
+                  <button onClick={() => setShowOnlyFavorites(false)} className="ml-1 p-0.5 hover:bg-white/20 rounded-full transition-colors">
+                    <X size={10} strokeWidth={4} />
+                  </button>
+               </div>
+            )}
+
+            {currentFolder && !showOnlyFavorites && (
                 <>
                     <ChevronRight size={14} className="text-slate-300 flex-shrink-0" />
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500 text-white font-bold border border-amber-500 shadow-lg shadow-amber-100 flex-shrink-0 animate-in fade-in slide-in-from-left-2 duration-300">

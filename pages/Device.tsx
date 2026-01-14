@@ -22,13 +22,6 @@ import {
   Mic,
   Square,
   Activity,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  VolumeX,
-  Music,
   Settings,
   ListChecks,
   Check
@@ -51,12 +44,6 @@ export const DevicePage: React.FC = () => {
     isRecording,
     recordingSeconds,
     toggleRecording,
-    isMusicPlaying,
-    toggleMusicPlay,
-    playNextTrack,
-    playPrevTrack,
-    musicVolume,
-    setMusicVolume,
     buttonPressDuration,
     setButtonPressDuration
   } = useDevice();
@@ -434,77 +421,6 @@ export const DevicePage: React.FC = () => {
                      </div>
                   </div>
                 )}
-             </div>
-        </div>
-
-        {/* Music Control Section */}
-        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 relative overflow-hidden">
-             {/* Background decorative element */}
-             <div className="absolute top-0 right-0 p-4 opacity-5">
-                <Music size={100} />
-             </div>
-
-             <div className="flex items-center gap-3 mb-6 relative z-10">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                   <Music size={14} />
-                </div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('device.music.title', language)}</h3>
-             </div>
-
-             <div className="flex flex-col gap-6 relative z-10">
-                {/* Controls */}
-                <div className="flex items-center justify-center gap-8">
-                   <button 
-                      onClick={playPrevTrack}
-                      className="text-slate-300 hover:text-indigo-600 transition-colors active:scale-90"
-                   >
-                      <SkipBack size={28} fill="currentColor" />
-                   </button>
-                   
-                   <button 
-                      onClick={toggleMusicPlay}
-                      className={`w-16 h-16 rounded-full flex items-center justify-center shadow-xl transition-all active:scale-95 hover:scale-105 ${
-                          isMusicPlaying 
-                            ? 'bg-indigo-600 text-white shadow-indigo-200' 
-                            : 'bg-white text-indigo-600 border border-indigo-100 shadow-slate-100'
-                      }`}
-                   >
-                      {isMusicPlaying ? <Pause size={28} fill="currentColor" /> : <Play size={28} fill="currentColor" className="ml-1"/>}
-                   </button>
-
-                   <button 
-                      onClick={playNextTrack}
-                      className="text-slate-300 hover:text-indigo-600 transition-colors active:scale-90"
-                   >
-                      <SkipForward size={28} fill="currentColor" />
-                   </button>
-                </div>
-
-                {/* Volume Slider */}
-                <div className="bg-slate-50 rounded-2xl p-4 flex items-center gap-4 border border-slate-100">
-                    <button onClick={() => setMusicVolume(0)} className="text-slate-400 hover:text-indigo-600 transition-colors">
-                        {musicVolume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                    </button>
-                    <div className="flex-1 relative h-1.5 bg-slate-200 rounded-full">
-                       <input 
-                          type="range" 
-                          min="0" 
-                          max="100" 
-                          value={musicVolume} 
-                          onChange={(e) => setMusicVolume(parseInt(e.target.value))}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                       />
-                       <div 
-                          className="absolute top-0 left-0 h-full bg-indigo-600 rounded-full transition-all" 
-                          style={{ width: `${musicVolume}%` }} 
-                       />
-                       <div 
-                          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-indigo-600 rounded-full shadow-md pointer-events-none transition-all"
-                          style={{ left: `${musicVolume}%`, transform: 'translate(-50%, -50%)' }}
-                       />
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 tabular-nums w-6 text-right">{musicVolume}</span>
-                </div>
              </div>
         </div>
 

@@ -21,6 +21,7 @@ interface DeviceContextType {
   deleteLocalRecording: (id: string) => void;
   renameLocalRecording: (id: string, newName: string) => void;
   togglePinRecording: (id: string) => void;
+  toggleFavoriteLocalRecording: (id: string) => void;
   deleteDeviceFile: (id: string) => void;
   checkIsSynced: (fileId: string) => boolean;
   createFolder: (name: string) => void;
@@ -113,11 +114,9 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     if (nextState) {
       startTimer();
-      // If we start recording, usually we pause music
       if (isMusicPlaying) setIsMusicPlaying(false);
     } else {
       stopTimer();
-      // On stop, add the recording to the device files
       if (status === ConnectionStatus.CONNECTED) {
         const finalDuration = recordingSeconds;
         const newFile: Recording = {
@@ -143,12 +142,10 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const playNextTrack = () => {
-    // Mock functionality
     console.log("Next track command sent");
   };
 
   const playPrevTrack = () => {
-    // Mock functionality
     console.log("Previous track command sent");
   };
 
@@ -159,7 +156,6 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const syncFile = async (file: Recording) => {
     if (checkIsSynced(file.id)) return;
     await new Promise(resolve => setTimeout(resolve, 800));
-    // Synced files go to root by default
     setLocalRecordings(prev => [{...file, folderId: undefined}, ...prev]);
   };
 
@@ -182,6 +178,10 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLocalRecordings(prev => prev.map(r => r.id === id ? { ...r, isPinned: !r.isPinned } : r));
   };
 
+  const toggleFavoriteLocalRecording = (id: string) => {
+    setLocalRecordings(prev => prev.map(r => r.id === id ? { ...r, isFavorite: !r.isFavorite } : r));
+  };
+
   const deleteDeviceFile = (id: string) => {
     setDeviceFiles(prev => prev.filter(r => r.id !== id));
   };
@@ -196,7 +196,6 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteFolder = (folderId: string) => {
-    // Only delete the folder itself, UI layer handles empty check
     setFolders(prev => prev.filter(f => f.id !== folderId));
   };
 
@@ -241,6 +240,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deleteLocalRecording,
       renameLocalRecording,
       togglePinRecording,
+      toggleFavoriteLocalRecording,
       deleteDeviceFile,
       checkIsSynced,
       createFolder,
